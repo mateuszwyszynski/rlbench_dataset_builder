@@ -1,3 +1,79 @@
+# RLBench in RLDS Format
+
+## Environment Setup
+
+1. Create a conda environment using environment files, e.g.:
+
+```bash
+conda env create -f rlds_dataset_builder/environment_ubuntu.yml
+```
+
+2. Install [RLBench](https://github.com/stepjam/RLBench?tab=readme-ov-file#install)
+
+## Data Generation
+
+The `ur5_data_generator.py` script in `rlbench_dataset` directory generates the data.
+It is a slightly changed version of `dataset_generator.py` from the original RLBench repository.
+It allows to generate data with UR5 robot.
+Example usage:
+
+```bash
+python ur5_data_generator.py \
+  --tasks place_shape_in_shape_sorter \
+  --image_size 256 256 \
+  --renderer opengl3 \
+  --processes 4 \
+  --episodes_per_task 10 \
+  --variations 5 \
+  --arm_max_velocity 1.0 \
+  --arm_max_acceleration 4.0 \
+  --robot_setup ur5
+```
+
+This should create a dataset in the `data/place_shape_in_shape_sorter` directory.
+
+## Convertion to RLDS Format
+
+To convert to RLDS format simply run `tfds build` inside the `rlbench_dataset` directory.
+The dataset will be stored in the `tensorflow_datasets` directory in your home directory.
+
+## Data Visualization
+
+To visualize the data run:
+
+```bash
+python visualize_dataset.py rl_bench_dataset
+```
+
+## Notes and troubleshooting:
+
+1. It can take up to several dozen minutes to generate the data.
+For testing purposes you can reduce `variations` and `episodes_per_task`
+2. If you wish, you can use a local, editable version of RLBench.
+Simply run `pip install -e RLBench` instead of `pip install git+https://github.com/stepjam/RLBench.git`.
+3. If you're getting
+
+```bash
+ImportError: libcoppeliaSim.so.1: cannot open shared object file: No such file or directory`
+```
+
+make sure that shell variables for Coppelia are exported (i.e. the ones exported during installation of RLBench):
+
+```bash
+export COPPELIASIM_ROOT=${HOME}/CoppeliaSim
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$COPPELIASIM_ROOT
+export QT_QPA_PLATFORM_PLUGIN_PATH=$COPPELIASIM_ROOT
+```
+
+---
+---
+---
+
+# Archive
+
+The text below is from the original repository.
+
+
 # RLDS Dataset Conversion
 
 This repo demonstrates how to convert an existing dataset into RLDS format for X-embodiment experiment integration.
