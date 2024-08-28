@@ -98,6 +98,7 @@ dependencies:
     - google-auth-oauthlib==0.5.2
     - googleapis-common-protos==1.59.1
     - grpcio==1.48.2
+    - gymnasium
     - h5py==3.7.0
     - hdfs==2.7.0
     - httplib2==0.22.0
@@ -117,6 +118,7 @@ dependencies:
     - objsize==0.6.1
     - orjson==3.9.2
     - packaging==23.0
+    - pandas
     - pathtools==0.1.2
     - pillow==10.0.0
     - pip==23.1.2
