@@ -12,11 +12,13 @@ from PIL import Image
 class RLBenchDataset(tfds.core.GeneratorBasedBuilder):
     """DatasetBuilder for example dataset."""
 
-    VERSION = tfds.core.Version('4.0.0')
+    VERSION = tfds.core.Version('6.0.0')
     RELEASE_NOTES = {
       '1.0.0': 'Initial release.',
       '3.0.0': 'Observation with joint positions.',
-      '4.0.0': 'Pick and lift task'
+      '4.0.0': 'Pick and lift task',
+      '5.0.0': 'Pick and lift task with train and val splits',
+      '6.0.0': 'Pick and lift task with train and val splits and only one variation',
     }
 
     def __init__(self, *args, **kwargs):
@@ -42,16 +44,16 @@ class RLBenchDataset(tfds.core.GeneratorBasedBuilder):
                             encoding_format='png',
                             doc='Wrist camera RGB observation.',
                         ),
-                        'joint_positions': tfds.features.Tensor(
-                            shape=(6,),
+                        'proprio': tfds.features.Tensor(
+                            shape=(7,),
                             dtype=np.float32,
-                            doc='6x robot joint angles.',
+                            doc='6x robot joint angles + gripper state',
                         )
                     }),
                     'action': tfds.features.Tensor(
                         shape=(7,),
                         dtype=np.float32,
-                        doc='Robot action for joints in one arm + gripper',
+                        doc='Robot action for joints in one arm + gripper state of the next step',
                     ),
                     'discount': tfds.features.Scalar(
                         dtype=np.float32,
@@ -93,11 +95,11 @@ class RLBenchDataset(tfds.core.GeneratorBasedBuilder):
     def _split_generators(self, dl_manager: tfds.download.DownloadManager):
         """Define data splits."""
         return {
-            'train': self._generate_examples(path=self.rlbench_generated_dataset_path),
-            # 'val': self._generate_examples(path='data/val/episode_*.npy'),
+            'train': self._generate_examples(path=self.rlbench_generated_dataset_path, train=True),
+            'val': self._generate_examples(path=self.rlbench_generated_dataset_path, train=False),
         }
 
-    def _generate_examples(self, path) -> Iterator[Tuple[str, Any]]:
+    def _generate_examples(self, path, train=True, train_size=0.9) -> Iterator[Tuple[str, Any]]:
         """Generator of examples for each split."""
 
         def _parse_episode(episode_path, variation_description):
@@ -119,14 +121,20 @@ class RLBenchDataset(tfds.core.GeneratorBasedBuilder):
 
                 front_image = Image.open(front_image_path)
                 wrist_image = Image.open(wrist_image_path)
-                action = np.concatenate([step["joint_velocities"], [step["gripper_open"]]], axis=-1, dtype=np.float32)
-                joint_positions = np.array(step["joint_positions"], dtype=np.float32)
+
+                if i == len(low_dim_obs) - 1:
+                    next_gripper_open = step["gripper_open"]
+                else:
+                    next_gripper_open = low_dim_obs[i+1]["gripper_open"]
+
+                action = np.concatenate([step["joint_velocities"], [next_gripper_open]], axis=-1, dtype=np.float32)
+                proprio = np.concatenate([step["joint_positions"], [step["gripper_open"]]], axis=-1, dtype=np.float32)
 
                 episode.append({
                     'observation': {
                         'image': np.array(front_image),
                         'wrist_image': np.array(wrist_image),
-                        'joint_positions': joint_positions,
+                        'proprio': proprio,
                     },
                     'action': action,
                     'discount': 1.0,
@@ -159,6 +167,12 @@ class RLBenchDataset(tfds.core.GeneratorBasedBuilder):
             variation_description_index = 0
 
             episodes_paths = glob.glob(variation + "/episodes/episode*")
+
+            if train:
+                episodes_paths = episodes_paths[:int(len(episodes_paths) * train_size)]
+            else:
+                episodes_paths = episodes_paths[int(len(episodes_paths) * train_size):]
+
             for episode_path in episodes_paths:
                 yield _parse_episode(episode_path, variation_descriptions[variation_description_index])
                 variation_description_index = (variation_description_index + 1) % len(variation_descriptions)
