@@ -7,10 +7,11 @@ import tensorflow_datasets as tfds
 import numpy as np
 import matplotlib.pyplot as plt
 import wandb
+import plotly.express as px
 
 
-WANDB_ENTITY = None
-WANDB_PROJECT = 'vis_rlds'
+WANDB_ENTITY = True
+WANDB_PROJECT = 'octo'
 
 
 parser = argparse.ArgumentParser()
@@ -19,8 +20,7 @@ args = parser.parse_args()
 
 if WANDB_ENTITY is not None:
     render_wandb = True
-    wandb.init(entity=WANDB_ENTITY,
-               project=WANDB_PROJECT)
+    wandb.init(name="visualize_dataset", project="octo")
 else:
     render_wandb = False
 
@@ -28,7 +28,6 @@ else:
 # create TF dataset
 dataset_name = args.dataset_name
 print(f"Visualizing data from dataset: {dataset_name}")
-module = importlib.import_module(dataset_name)
 ds = tfds.load(dataset_name, split='train')
 ds = ds.shuffle(100)
 
@@ -48,15 +47,18 @@ for i, episode in enumerate(ds.take(5)):
         plt.title(caption)
 
 # visualize action and state statistics
-actions, states = [], []
+actions, states, episode_lengths = [], [], []
 for episode in tqdm.tqdm(ds.take(500)):
+    episode_lengths.append(len(episode['steps']))
     for step in episode['steps']:
         actions.append(step['action'].numpy())
-        states.append(step['observation']['state'].numpy())
+        states.append(step['observation']['joint_positions'].numpy())
 actions = np.array(actions)
 states = np.array(states)
 action_mean = actions.mean(0)
 state_mean = states.mean(0)
+
+wandb.log({"episode_lengths": wandb.Plotly(px.histogram(episode_lengths))})
 
 def vis_stats(vector, vector_mean, tag):
     assert len(vector.shape) == 2
