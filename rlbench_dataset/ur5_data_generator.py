@@ -18,6 +18,15 @@ from rlbench.backend.utils import task_file_to_task_class
 from rlbench.environment import Environment
 
 
+class UR5ActionMode(MoveArmThenGripper):
+    def __init__(self):
+        super(UR5ActionMode, self).__init__(JointVelocity(), Discrete())
+
+    def action_bounds(self):
+        """Returns the min and max of the action mode."""
+        return np.array(6 * [-1] + [0.0]), np.array(6 * [1] + [1.0])
+
+
 def check_and_make(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
@@ -67,6 +76,7 @@ def save_demo(demo, example_path):
     check_and_make(front_depth_path)
     check_and_make(front_mask_path)
 
+    observations = []
     for i, obs in enumerate(demo):
         left_shoulder_rgb = Image.fromarray(obs.left_shoulder_rgb)
         left_shoulder_depth = utils.float_array_to_rgb_image(
@@ -139,10 +149,32 @@ def save_demo(demo, example_path):
         obs.front_point_cloud = None
         obs.front_mask = None
 
-    # Save the low-dimension data
-    with open(os.path.join(example_path, LOW_DIM_PICKLE), 'wb') as f:
-        pickle.dump(demo, f)
+        # The following messy code is needed to serialize trajectories in a portable way.
+        # TODO: Refactor it to be cleaner.
+        observation = {}
+        for key, value in obs.__dict__.items():
+            if value is None:
+                new_value = None
+            elif isinstance(value, np.ndarray):
+                new_value = value.tolist()
+            elif isinstance(value, dict):
+                new_value = {}
+                for dict_key, dict_value in value.items():
+                    if isinstance(dict_value, np.ndarray):
+                        new_value[dict_key] = dict_value.tolist()
+                    elif dict_key == "joint_poses":
+                        new_value[dict_key] = [array.tolist() for array in dict_value]
+                    else:
+                        new_value[dict_key] = dict_value
+            else:
+                new_value = value
+            observation[key] = new_value
 
+        observations.append(observation)
+
+    # Serialize the dictionary
+    with open(os.path.join(example_path, 'low_dim_obs.pkl'), 'wb') as f:
+        pickle.dump(observations, f)
 
 def run(i, lock, task_index, variation_count, results, file_lock, tasks, args):
     """Each thread will choose one task and variation, and then gather
@@ -156,6 +188,11 @@ def run(i, lock, task_index, variation_count, results, file_lock, tasks, args):
 
     obs_config = ObservationConfig()
     obs_config.set_all(True)
+
+    # gripper_touch_forces are not supported by UR5 robot.
+    if args.robot_setup == "ur5":
+        obs_config.gripper_touch_forces = False
+
     obs_config.right_shoulder_camera.image_size = img_size
     obs_config.left_shoulder_camera.image_size = img_size
     obs_config.overhead_camera.image_size = img_size
@@ -194,7 +231,9 @@ def run(i, lock, task_index, variation_count, results, file_lock, tasks, args):
         obs_config=obs_config,
         arm_max_velocity=args.arm_max_velocity,
         arm_max_acceleration=args.arm_max_acceleration,
-        headless=True)
+        headless=True,
+        robot_setup=args.robot_setup
+        )
     rlbench_env.launch()
 
     task_env = None
@@ -291,6 +330,7 @@ def parse_args():
     parser.add_argument('--variations', type=int, default=-1, help='Number of variations to collect per task. -1 for all.')
     parser.add_argument('--arm_max_velocity', type=float, default=1.0, help='Max arm velocity used for motion planning.')
     parser.add_argument('--arm_max_acceleration', type=float, default=4.0, help='Max arm acceleration used for motion planning.')
+    parser.add_argument('--robot_setup', type=str, default="panda", help='Robot setup: [panda, jaco, mico, sawyer, ur5]')
     return parser.parse_args()
 
 
