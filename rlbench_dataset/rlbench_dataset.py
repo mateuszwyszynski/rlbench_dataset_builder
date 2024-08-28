@@ -21,7 +21,7 @@ class RLBenchDataset(tfds.core.GeneratorBasedBuilder):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.rlbench_generated_dataset_path = "generated_datasets/place_shape_in_shape_sorter"
+        self.rlbench_generated_dataset_path = "data/place_shape_in_shape_sorter"
         self._embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder-large/5")
 
     def _info(self) -> tfds.core.DatasetInfo:
