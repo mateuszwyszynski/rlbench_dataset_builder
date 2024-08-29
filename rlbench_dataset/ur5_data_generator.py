@@ -9,22 +9,13 @@ from pyrep.const import RenderMode
 
 import rlbench.backend.task as task
 from rlbench import ObservationConfig
-from rlbench.action_modes.action_mode import MoveArmThenGripper
-from rlbench.action_modes.arm_action_modes import JointVelocity
-from rlbench.action_modes.gripper_action_modes import Discrete
 from rlbench.backend import utils
 from rlbench.backend.const import *
 from rlbench.backend.utils import task_file_to_task_class
 from rlbench.environment import Environment
 
 
-class UR5ActionMode(MoveArmThenGripper):
-    def __init__(self):
-        super(UR5ActionMode, self).__init__(JointVelocity(), Discrete())
-
-    def action_bounds(self):
-        """Returns the min and max of the action mode."""
-        return np.array(6 * [-1] + [0.0]), np.array(6 * [1] + [1.0])
+from action_modes import UR5ActionMode
 
 
 def check_and_make(dir):
@@ -227,7 +218,7 @@ def run(i, lock, task_index, variation_count, results, file_lock, tasks, args):
         obs_config.front_camera.render_mode = RenderMode.OPENGL3
 
     rlbench_env = Environment(
-        action_mode=MoveArmThenGripper(JointVelocity(), Discrete()),
+        action_mode=UR5ActionMode(),
         obs_config=obs_config,
         arm_max_velocity=args.arm_max_velocity,
         arm_max_acceleration=args.arm_max_acceleration,
