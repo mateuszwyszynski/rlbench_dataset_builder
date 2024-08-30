@@ -124,10 +124,12 @@ class RLBenchDataset(tfds.core.GeneratorBasedBuilder):
 
                 if i == len(low_dim_obs) - 1:
                     next_gripper_open = step["gripper_open"]
+                    next_joint_positions = step["joint_positions"]
                 else:
                     next_gripper_open = low_dim_obs[i+1]["gripper_open"]
+                    next_joint_positions = low_dim_obs[i+1]["joint_positions"]
 
-                action = np.concatenate([step["joint_velocities"], [next_gripper_open]], axis=-1, dtype=np.float32)
+                action = np.concatenate([np.array(next_joint_positions) - np.array(step["joint_positions"]), [next_gripper_open]], axis=-1, dtype=np.float32)
                 proprio = np.concatenate([step["joint_positions"], [step["gripper_open"]]], axis=-1, dtype=np.float32)
 
                 episode.append({
