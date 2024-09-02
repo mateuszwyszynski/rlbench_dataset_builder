@@ -12,18 +12,19 @@ from PIL import Image
 class RLBenchDataset(tfds.core.GeneratorBasedBuilder):
     """DatasetBuilder for example dataset."""
 
-    VERSION = tfds.core.Version('6.0.0')
+    VERSION = tfds.core.Version('9.0.0')
     RELEASE_NOTES = {
       '1.0.0': 'Initial release.',
       '3.0.0': 'Observation with joint positions.',
       '4.0.0': 'Pick and lift task',
       '5.0.0': 'Pick and lift task with train and val splits',
       '6.0.0': 'Pick and lift task with train and val splits and only one variation',
+      '9.0.0': 'Reach target.'
     }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.rlbench_generated_dataset_path = "data/place_shape_in_shape_sorter"
+        self.rlbench_generated_dataset_path = "data/reach_target"
         self._embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder-large/5")
 
     def _info(self) -> tfds.core.DatasetInfo:
@@ -53,7 +54,7 @@ class RLBenchDataset(tfds.core.GeneratorBasedBuilder):
                     'action': tfds.features.Tensor(
                         shape=(7,),
                         dtype=np.float32,
-                        doc='Robot action for joints in one arm + gripper state of the next step',
+                        doc='Absolute values of joint positions in one arm + gripper state of the next step',
                     ),
                     'discount': tfds.features.Scalar(
                         dtype=np.float32,
@@ -123,14 +124,18 @@ class RLBenchDataset(tfds.core.GeneratorBasedBuilder):
                 wrist_image = Image.open(wrist_image_path)
 
                 if i == len(low_dim_obs) - 1:
-                    next_gripper_open = step["gripper_open"]
-                    next_joint_positions = step["joint_positions"]
+                    next_joint_position_action = step["misc"]["joint_position_action"]
                 else:
-                    next_gripper_open = low_dim_obs[i+1]["gripper_open"]
-                    next_joint_positions = low_dim_obs[i+1]["joint_positions"]
+                    next_joint_position_action = low_dim_obs[i+1]["misc"]["joint_position_action"]
 
-                action = np.concatenate([np.array(next_joint_positions) - np.array(step["joint_positions"]), [next_gripper_open]], axis=-1, dtype=np.float32)
-                proprio = np.concatenate([step["joint_positions"], [step["gripper_open"]]], axis=-1, dtype=np.float32)
+                action = np.array(next_joint_position_action, dtype=np.float32)
+
+                # Apparently step["gripper_open"] is not correct value of gripper state.
+                # It can be easily checked by comparing this value with images from the wrist camera. They mismatch significantly. 
+                # Use step["misc"]["joint_position_action"][-1], which contains correct current gripper state.
+                # The first step doesn't contain step["misc"]["joint_position_action"], so for the first step set value 1.0.
+                current_gripper_open = step["misc"]["joint_position_action"][-1] if i != 0 else 1.0
+                proprio = np.concatenate([step["joint_positions"], [current_gripper_open]], axis=-1, dtype=np.float32)
 
                 episode.append({
                     'observation': {
