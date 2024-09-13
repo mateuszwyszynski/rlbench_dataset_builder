@@ -10,7 +10,6 @@ import tensorflow_hub as hub
 import pickle
 from PIL import Image
 
-JOINT_COUNT = 7
 ACTION_MODE = action_modes.DeltaEEPoseActionMode()
 PROPRIO_MODE = proprio_modes.AbsoluteEEEulerPoseProprioMode()
 RLBENCH_GENERATED_DATASET_PATH = "/path/to/rlbench/generated/dataset"
