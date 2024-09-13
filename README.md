@@ -34,8 +34,11 @@ This should create a dataset in the `data/place_shape_in_shape_sorter` directory
 
 ## Convertion to RLDS Format
 
-To convert to RLDS format simply run `tfds build` inside the `rlbench_dataset` directory.
-The dataset will be stored in the `tensorflow_datasets` directory in your home directory.
+To convert to RLDS format:
+   1. Set `RLBENCH_GENERATED_DATASET_PATH` (eg. `data/place_shape_in_shape_sorter`), `ACTION_MODE` (chosen from `rlbench_dataset/action_modes.py` file), `PROPRIO_MODE` (chosedn from `rlbench_dataset/proprio_modes.py`) constants at the top of the `rlbench_dataset/rlbench_dataset.py` file.
+   2. Change `VERSION` and `RELEASE_NOTES` constants in `RLBenchDataset` class in `rlbench_dataset/rlbench_dataset.py` file.
+   3. Run `tfds build` inside the `rlbench_dataset` directory.
+The converted dataset will be stored in the `tensorflow_datasets` directory in your home directory.
 
 ## Data Visualization
 
@@ -44,6 +47,13 @@ To visualize the data run:
 ```bash
 python visualize_dataset.py rl_bench_dataset
 ```
+
+or specify a version
+
+```bash
+python visualize_dataset.py rl_bench_dataset
+```
+
 
 ## Notes and troubleshooting:
 
